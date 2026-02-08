@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Jump Quest – Primary Math</title>
+<style>
+  * { box-sizing: border-box; font-family: Arial, sans-serif; }
+  body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #22c55e, #3b82f6);
+  }
+
+  .screen {
+    width: 900px;
+    height: 560px;
+    background: #f8fafc;
+    border-radius: 16px;
+    padding: 20px;
+    display: none;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+  }
+  .active { display: block; }
+
+  h1, h2 { text-align: center; }
+
+  button {
+    padding: 12px 30px;
+    font-size: 18px;
+    border: none;
+    border-radius: 8px;
+    background: #2563eb;
+    color: white;
+    cursor: pointer;
+  }
+  button:hover { background: #1d4ed8; }
+
+  .center { text-align: center; margin-top: 40px; }
+
+  .hud {
+    display: flex;
+    justify-content: space-between;
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
+
+  .stars { color: gold; }
+
+  #instruction {
+    text-align: center;
+    font-size: 22px;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+
+  #gameArea {
+    position: relative;
+    width: 100%;
+    height: 420px;
+    background: #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  #player {
+    position: absolute;
+    bottom: 20px;
+    left: 50px;
+    width: 40px;
+    height: 40px;
+    background: #111827;
+    border-radius: 8px;
+  }
+
+  .platform {
+    position: absolute;
+    width: 110px;
+    height: 30px;
+    background: #60a5fa;
+    border-radius: 8px;
+    text-align: center;
+    line-height: 30px;
+    font-weight: bold;
+  }
+
+  .correct { background: #22c55e; color: white; }
+  .wrong { background: #ef4444; color: white; }
+</style>
+</head>
+<body>
+
+<!-- START SCREEN -->
+<div id="startScreen" class="screen active">
+  <h1>🧗 Jump Quest</h1>
+  <p style="text-align:center; font-size:18px;">
+    Jump onto the correct math platforms!<br>
+    Use ⬅️ ➡️ to move and ⬆️ to jump.
+  </p>
+  <div class="center">
+    <button onclick="startGame()">Start Game</button>
+  </div>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="gameScreen" class="screen">
+  <div class="hud">
+    <div>Score: <span id="score">0</span></div>
+    <div>Level: <span id="level">1</span></div>
+    <div>Time: <span id="time">60</span>s</div>
+    <div class="stars" id="stars">⭐</div>
+  </div>
+
+  <div id="instruction"></div>
+
+  <div id="gameArea">
+    <div id="player"></div>
+  </div>
+</div>
+
+<!-- END SCREEN -->
+<div id="endScreen" class="screen">
+  <h1>🏁 Game Over</h1>
+  <h2>Final Score: <span id="finalScore"></span></h2>
+  <h3>Stars Earned: <span id="finalStars"></span></h3>
+  <div class="center">
+    <button onclick="restartGame()">Play Again</button>
+  </div>
+</div>
+
+<script>
+  const startScreen = document.getElementById('startScreen');
+  const gameScreen = document.getElementById('gameScreen');
+  const endScreen = document.getElementById('endScreen');
+  const gameArea = document.getElementById('gameArea');
+
+  const scoreEl = document.getElementById('score');
+  const levelEl = document.getElementById('level');
+  const timeEl = document.getElementById('time');
+  const starsEl = document.getElementById('stars');
+  const instructionEl = document.getElementById('instruction');
+
+  const player = document.getElementById('player');
+
+  let score = 0;
+  let level = 1;
+  let stars = 1;
+  let timeLeft = 60;
+
+  let playerX = 50;
+  let playerY = 360;
+  let velocityY = 0;
+  let isJumping = false;
+
+  let correctAnswer = 0;
+  let timer, gameLoop;
+
+  function startGame() {
+    startScreen.classList.remove('active');
+    gameScreen.classList.add('active');
+    resetGame();
+    timer = setInterval(updateTimer, 1000);
+    gameLoop = setInterval(updateGame, 20);
+  }
+
+  function resetGame() {
+    score = 0;
+    level = 1;
+    stars = 1;
+    timeLeft = 60;
+    playerX = 50;
+    playerY = 360;
+    velocityY = 0;
+    updateHUD();
+    setupLevel();
+  }
+
+  function updateHUD() {
+    scoreEl.textContent = score;
+    levelEl.textContent = level;
+    timeEl.textContent = timeLeft;
+    starsEl.textContent = '⭐'.repeat(stars);
+  }
+
+  function setupLevel() {
+    document.querySelectorAll('.platform').forEach(p => p.remove());
+
+    let a = Math.floor(Math.random() * 5 * level) + 1;
+    let b = Math.floor(Math.random() * 5 * level) + 1;
+
+    if (level === 1) {
+      correctAnswer = a + b;
+      instructionEl.textContent = `Jump on platforms showing: ${a} + ${b}`;
+    } else if (level === 2) {
+      correctAnswer = a - b;
+      instructionEl.textContent = `Jump on platforms showing: ${a} - ${b}`;
+    } else if (level === 3) {
+      correctAnswer = a * b;
+      instructionEl.textContent = `Jump on platforms showing: ${a} × ${b}`;
+    } else {
+      correctAnswer = Math.floor(a / b);
+      instructionEl.textContent = `Jump on platforms showing: ${a} ÷ ${b}`;
+    }
+
+    let values = new Set([correctAnswer]);
+    while (values.size < 6) {
+      let v = correctAnswer + Math.floor(Math.random() * 10) - 5;
+      if (v >= 0) values.add(v);
+    }
+
+    // Convert values set to array and shuffle so correct answer is random
+    let shuffled = Array.from(values);
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    shuffled.forEach((val, i) => {
+      const platform = document.createElement('div');
+      platform.className = 'platform';
+      platform.textContent = val;
+      platform.dataset.value = val;
+      platform.style.left = 120 * i + 60 + 'px';
+      platform.style.top = Math.random() * 200 + 120 + 'px';
+      gameArea.appendChild(platform);
+    });
+  }
+
+  function updateGame() {
+    velocityY += 1;
+    playerY += velocityY;
+
+    if (playerY > 360) {
+      playerY = 360;
+      velocityY = 0;
+      isJumping = false;
+    }
+
+    document.querySelectorAll('.platform').forEach(p => {
+      const px = p.offsetLeft;
+      const py = p.offsetTop;
+      if (
+        playerX + 40 > px && playerX < px + 110 &&
+        playerY + 40 > py && playerY + 40 < py + 20 &&
+        velocityY >= 0
+      ) {
+        playerY = py - 40;
+        velocityY = 0;
+        isJumping = false;
+
+        if (parseInt(p.dataset.value) === correctAnswer) {
+          score += 10;
+          p.classList.add('correct');
+        } else {
+          score -= 5;
+          p.classList.add('wrong');
+        }
+        setTimeout(setupLevel, 500);
+      }
+    });
+
+    player.style.left = playerX + 'px';
+    player.style.top = playerY + 'px';
+    updateHUD();
+  }
+
+  function updateTimer() {
+    timeLeft--;
+    updateHUD();
+    if (timeLeft <= 0) endGame();
+  }
+
+  function endGame() {
+    clearInterval(timer);
+    clearInterval(gameLoop);
+    gameScreen.classList.remove('active');
+    endScreen.classList.add('active');
+    document.getElementById('finalScore').textContent = score;
+    document.getElementById('finalStars').textContent = '⭐'.repeat(stars);
+  }
+
+  function restartGame() {
+    endScreen.classList.remove('active');
+    startScreen.classList.add('active');
+  }
+
+  document.addEventListener('keydown', e => {
+    if (!gameScreen.classList.contains('active')) return;
+    if (e.key === 'ArrowLeft') playerX -= 20;
+    if (e.key === 'ArrowRight') playerX += 20;
+    if (e.key === 'ArrowUp' && !isJumping) {
+      velocityY = -25;
+      isJumping = true;
+    }
+    playerX = Math.max(0, Math.min(gameArea.clientWidth - 40, playerX));
+  });
+</script>
+
+</body>
+</html>
